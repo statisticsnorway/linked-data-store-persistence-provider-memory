@@ -20,13 +20,14 @@ class InMemoryPersistenceWriter {
 
     boolean createOrOverwriteEntity(String namespace, String entity, String id, JSONObject jsonObject) {
         emulateSlowPersistence();
-        datasource.map().put(namespace + entity + id, jsonObject.toString());
-        return true;
+        String key = namespace + entity + id;
+        String previousValue = datasource.map().put(key, jsonObject.toString());
+        return previousValue == null;
     }
 
     boolean deleteEntity(String namespace, String entity, String id) {
-        datasource.map().remove(namespace + entity + id);
-        return true;
+        String removedValue = datasource.map().remove(namespace + entity + id);
+        return removedValue != null;
     }
 
     private void emulateSlowPersistence() {
