@@ -1,1 +1,1 @@
-no.ssb.lds.core.persistence.memory.InMemoryInitializer
+no.ssb.lds.core.persistence.memory.MemoryInitializer
