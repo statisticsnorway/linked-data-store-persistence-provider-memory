@@ -24,14 +24,23 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
     final int prefixLength;
     final Lock lock;
     final TransactionStatistics statistics = new TransactionStatistics();
-    final Function<KeySelector, byte[]> selectKey;
+    final Function<KeySelector, byte[]> selectKey = keySelectorFunction();
 
     public MemoryTransaction(ConcurrentMap<byte[], ConcurrentNavigableMap<byte[], byte[]>> mapByPrefix, int prefixLength, Lock lock) throws InterruptedException {
         this.mapByPrefix = mapByPrefix;
         this.prefixLength = prefixLength;
         this.lock = lock;
         lock.lockInterruptibly();
-        selectKey = ks -> {
+    }
+
+    ConcurrentNavigableMap<byte[], byte[]> getMapByPrefix(byte[] key) {
+        byte[] prefix = new byte[prefixLength];
+        System.arraycopy(key, 0, prefix, 0, prefix.length);
+        return mapByPrefix.computeIfAbsent(prefix, k -> new ConcurrentSkipListMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2)));
+    }
+
+    Function<KeySelector, byte[]> keySelectorFunction() {
+        return ks -> {
             NavigableMap<byte[], byte[]> map = getMapByPrefix(ks.getKey());
             String ksToString = ks.toString();
             if (ks.getOffset() == 0) {
@@ -51,12 +60,6 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
             // greater than
             return map.higherKey(ks.getKey());
         };
-    }
-
-    ConcurrentNavigableMap<byte[], byte[]> getMapByPrefix(byte[] key) {
-        byte[] prefix = new byte[prefixLength];
-        System.arraycopy(key, 0, prefix, 0, prefix.length);
-        return mapByPrefix.computeIfAbsent(prefix, k -> new ConcurrentSkipListMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2)));
     }
 
     @Override
