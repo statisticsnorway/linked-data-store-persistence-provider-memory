@@ -10,38 +10,50 @@ import no.ssb.lds.core.persistence.foundationdb.OrderedKeyValueTransaction;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 
 class MemoryTransaction implements OrderedKeyValueTransaction {
 
-    final ConcurrentMap<byte[], ConcurrentNavigableMap<byte[], byte[]>> mapByPrefix;
+    static class TransactionLogElement {
+        final String index;
+        final Map<byte[], byte[]> map;
+
+        TransactionLogElement(String index, Map<byte[], byte[]> map) {
+            this.index = index;
+            this.map = new LinkedHashMap<>(map);
+        }
+    }
+
+    final ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> mapByPrefix;
     final int prefixLength;
     final Lock lock;
     final TransactionStatistics statistics = new TransactionStatistics();
-    final Function<KeySelector, byte[]> selectKey = keySelectorFunction();
+    final List<TransactionLogElement> transactionLog = new CopyOnWriteArrayList<>();
 
-    public MemoryTransaction(ConcurrentMap<byte[], ConcurrentNavigableMap<byte[], byte[]>> mapByPrefix, int prefixLength, Lock lock) throws InterruptedException {
+    public MemoryTransaction(ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> mapByPrefix, int prefixLength, Lock lock) throws InterruptedException {
         this.mapByPrefix = mapByPrefix;
         this.prefixLength = prefixLength;
         this.lock = lock;
         lock.lockInterruptibly();
     }
 
-    ConcurrentNavigableMap<byte[], byte[]> getMapByPrefix(byte[] key) {
-        byte[] prefix = new byte[prefixLength];
-        System.arraycopy(key, 0, prefix, 0, prefix.length);
-        return mapByPrefix.computeIfAbsent(prefix, k -> new ConcurrentSkipListMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2)));
+    ConcurrentNavigableMap<byte[], byte[]> getMapByIndex(String index) {
+        return mapByPrefix.computeIfAbsent(index, k -> new ConcurrentSkipListMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2)));
     }
 
-    Function<KeySelector, byte[]> keySelectorFunction() {
+    Function<KeySelector, byte[]> keySelectorFunction(String index) {
         return ks -> {
-            NavigableMap<byte[], byte[]> map = getMapByPrefix(ks.getKey());
+            NavigableMap<byte[], byte[]> map = getMapByIndex(index);
             String ksToString = ks.toString();
             if (ks.getOffset() == 0) {
                 // less
@@ -74,7 +86,18 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
     @Override
     public CompletableFuture<TransactionStatistics> cancel() {
         try {
-            throw new UnsupportedOperationException();
+            for (int i = transactionLog.size(); i >= 0; i--) {
+                TransactionLogElement element = transactionLog.get(i);
+                ConcurrentNavigableMap<byte[], byte[]> mapByPrefix = getMapByIndex(element.index);
+                for (Map.Entry<byte[], byte[]> entry : element.map.entrySet()) {
+                    if (entry.getValue() == null) {
+                        mapByPrefix.remove(entry.getKey());
+                    } else {
+                        mapByPrefix.put(entry.getKey(), entry.getValue());
+                    }
+                }
+            }
+            return CompletableFuture.completedFuture(statistics);
         } finally {
             lock.unlock();
         }
@@ -82,18 +105,30 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
 
     @Override
     public void clearRange(Range range, String index) {
-        NavigableMap<byte[], byte[]> subMap = getMapByPrefix(range.begin).subMap(range.begin, true, range.end, false);
+        NavigableMap<byte[], byte[]> subMap = getMapByIndex(index).subMap(range.begin, true, range.end, false);
+        transactionLog.add(new TransactionLogElement(index, subMap));
         subMap.clear();
     }
 
     @Override
+    public void clear(byte[] key, String index) {
+        byte[] previousValue = getMapByIndex(index).remove(key);
+        LinkedHashMap<byte[], byte[]> map = new LinkedHashMap<>();
+        map.put(key, previousValue);
+        transactionLog.add(new TransactionLogElement(index, map));
+    }
+
+    @Override
     public void set(byte[] key, byte[] value, String index) {
-        getMapByPrefix(key).put(key, value);
+        byte[] previousValue = getMapByIndex(index).put(key, value);
+        LinkedHashMap<byte[], byte[]> map = new LinkedHashMap<>();
+        map.put(key, previousValue);
+        transactionLog.add(new TransactionLogElement(index, map));
     }
 
     @Override
     public AsyncIterable<KeyValue> getRange(Range range, String index) {
-        return new MemoryAsyncIterable(getMapByPrefix(range.begin).subMap(range.begin, true, range.end, false));
+        return new MemoryAsyncIterable(getMapByIndex(index).subMap(range.begin, true, range.end, false));
     }
 
     @Override
@@ -103,8 +138,8 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
 
     @Override
     public AsyncIterable<KeyValue> getRange(KeySelector begin, KeySelector end, int limit, StreamingMode streamingMode, String index) {
-        byte[] fromInclusive = selectKey.apply(begin);
-        byte[] toExclusive = selectKey.apply(end);
+        byte[] fromInclusive = keySelectorFunction(index).apply(begin);
+        byte[] toExclusive = keySelectorFunction(index).apply(end);
         if (fromInclusive != null) {
             if (toExclusive != null) {
                 int compareUnsigned = Arrays.compareUnsigned(fromInclusive, toExclusive);
@@ -113,7 +148,7 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
                     return new MemoryAsyncIterable(Collections.emptyNavigableMap());
                 }
                 // positive range
-                return new MemoryAsyncIterable(getMapByPrefix(begin.getKey()).subMap(fromInclusive, true, toExclusive, false));
+                return new MemoryAsyncIterable(getMapByIndex(index).subMap(fromInclusive, true, toExclusive, false));
             }
             // toExclusive is null
             if (end.getOffset() == 0) {
@@ -121,13 +156,13 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
                 return new MemoryAsyncIterable(Collections.emptyNavigableMap());
             }
             // end greater
-            return new MemoryAsyncIterable(getMapByPrefix(begin.getKey()).tailMap(fromInclusive, true));
+            return new MemoryAsyncIterable(getMapByIndex(index).tailMap(fromInclusive, true));
         } else {
             // fromInclusive == null
             if (toExclusive != null) {
                 if (begin.getOffset() == 0) {
                     // begin less
-                    getMapByPrefix(begin.getKey()).headMap(toExclusive, false);
+                    getMapByIndex(index).headMap(toExclusive, false);
                 }
                 // begin greater
                 return new MemoryAsyncIterable(Collections.emptyNavigableMap());
@@ -135,15 +170,10 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
             // toExclusive == null
             if (begin.getOffset() == 0 && end.getOffset() == 1) {
                 // begin less and end greater
-                return new MemoryAsyncIterable(getMapByPrefix(begin.getKey()));
+                return new MemoryAsyncIterable(getMapByIndex(index));
             }
             // begin greater or end less
             return new MemoryAsyncIterable(Collections.emptyNavigableMap());
         }
-    }
-
-    @Override
-    public void clear(byte[] key, String index) {
-        getMapByPrefix(key).remove(key);
     }
 }

@@ -4,7 +4,6 @@ import no.ssb.lds.api.persistence.PersistenceException;
 import no.ssb.lds.api.persistence.Transaction;
 import no.ssb.lds.api.persistence.TransactionFactory;
 
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
@@ -18,7 +17,7 @@ import java.util.function.Function;
 public class MemoryTransactionFactory implements TransactionFactory {
 
     final int prefixLength;
-    final ConcurrentMap<byte[], ConcurrentNavigableMap<byte[], byte[]>> indexByPrefix = new ConcurrentSkipListMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2));
+    final ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> indexByPrefix = new ConcurrentSkipListMap<>();
     final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
     public MemoryTransactionFactory(int prefixLength) {
