@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 
@@ -34,21 +35,23 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
         }
     }
 
-    final ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> mapByPrefix;
-    final int prefixLength;
+    final ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> mapByIndex;
     final Lock lock;
+    final AtomicBoolean locked = new AtomicBoolean(true);
     final TransactionStatistics statistics = new TransactionStatistics();
     final List<TransactionLogElement> transactionLog = new CopyOnWriteArrayList<>();
 
-    public MemoryTransaction(ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> mapByPrefix, int prefixLength, Lock lock) throws InterruptedException {
-        this.mapByPrefix = mapByPrefix;
-        this.prefixLength = prefixLength;
+    public MemoryTransaction(ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> mapByIndex, Lock lock) throws InterruptedException {
+        this.mapByIndex = mapByIndex;
         this.lock = lock;
         lock.lockInterruptibly();
     }
 
     ConcurrentNavigableMap<byte[], byte[]> getMapByIndex(String index) {
-        return mapByPrefix.computeIfAbsent(index, k -> new ConcurrentSkipListMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2)));
+        if (!locked.get()) {
+            throw new IllegalStateException("Attempting to access database from within a closed transaction.");
+        }
+        return mapByIndex.computeIfAbsent(index, k -> new ConcurrentSkipListMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2)));
     }
 
     Function<KeySelector, byte[]> keySelectorFunction(String index) {
@@ -79,14 +82,16 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
         try {
             return CompletableFuture.completedFuture(statistics);
         } finally {
-            lock.unlock();
+            if (locked.compareAndSet(true, false)) {
+                lock.unlock();
+            }
         }
     }
 
     @Override
     public CompletableFuture<TransactionStatistics> cancel() {
         try {
-            for (int i = transactionLog.size(); i >= 0; i--) {
+            for (int i = transactionLog.size() - 1; i >= 0; i--) {
                 TransactionLogElement element = transactionLog.get(i);
                 ConcurrentNavigableMap<byte[], byte[]> mapByPrefix = getMapByIndex(element.index);
                 for (Map.Entry<byte[], byte[]> entry : element.map.entrySet()) {
@@ -97,9 +102,12 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
                     }
                 }
             }
+            transactionLog.clear();
             return CompletableFuture.completedFuture(statistics);
         } finally {
-            lock.unlock();
+            if (locked.compareAndSet(true, false)) {
+                lock.unlock();
+            }
         }
     }
 

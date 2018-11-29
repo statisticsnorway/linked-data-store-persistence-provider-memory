@@ -29,7 +29,7 @@ public class MemoryInitializer implements PersistenceInitializer {
     public Persistence initialize(String defaultNamespace, Map<String, String> configuration, Set<String> managedDomains) {
         int waitMinMs = Integer.parseInt(configuration.get("persistence.mem.wait.min"));
         int waitMaxMs = Integer.parseInt(configuration.get("persistence.mem.wait.max"));
-        TransactionFactory transactionFactory = new MemoryTransactionFactory(2);
+        TransactionFactory transactionFactory = new MemoryTransactionFactory();
         FoundationDBDirectory foundationDbDirectory = new MemoryDirectory(2);
         return new MemoryPersistence(transactionFactory, foundationDbDirectory);
     }

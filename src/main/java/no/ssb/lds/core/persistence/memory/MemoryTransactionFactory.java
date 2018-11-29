@@ -16,18 +16,16 @@ import java.util.function.Function;
 
 public class MemoryTransactionFactory implements TransactionFactory {
 
-    final int prefixLength;
-    final ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> indexByPrefix = new ConcurrentSkipListMap<>();
+    final ConcurrentMap<String, ConcurrentNavigableMap<byte[], byte[]>> indexByIndex = new ConcurrentSkipListMap<>();
     final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
 
-    public MemoryTransactionFactory(int prefixLength) {
-        this.prefixLength = prefixLength;
+    public MemoryTransactionFactory() {
     }
 
     @Override
     public <T> CompletableFuture<T> runAsyncInIsolatedTransaction(Function<? super Transaction, ? extends CompletableFuture<T>> retryable) {
         ForkJoinTask<? extends CompletableFuture<T>> task = ForkJoinPool.commonPool().submit(() -> {
-            try (Transaction tx = createTransaction(false)) {
+            try (MemoryTransaction tx = createTransaction(false)) {
                 return retryable.apply(tx);
             }
         });
@@ -35,9 +33,9 @@ public class MemoryTransactionFactory implements TransactionFactory {
     }
 
     @Override
-    public Transaction createTransaction(boolean readOnly) throws PersistenceException {
+    public MemoryTransaction createTransaction(boolean readOnly) throws PersistenceException {
         try {
-            return new MemoryTransaction(indexByPrefix, prefixLength, readOnly ? readWriteLock.readLock() : readWriteLock.writeLock());
+            return new MemoryTransaction(indexByIndex, readOnly ? readWriteLock.readLock() : readWriteLock.writeLock());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
