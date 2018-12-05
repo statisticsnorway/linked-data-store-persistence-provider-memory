@@ -11,7 +11,7 @@ import java.util.Set;
 public class MemoryPersistenceIntegrationTest extends BufferedPersistenceIntegration {
 
     public MemoryPersistenceIntegrationTest() {
-        super("lds-provider-memory-integration-test");
+        super("lds-provider-memory-integration-test", 8 * 1024);
     }
 
     @BeforeClass
@@ -20,7 +20,7 @@ public class MemoryPersistenceIntegrationTest extends BufferedPersistenceIntegra
                 Map.of("persistence.mem.wait.min", "0",
                         "persistence.mem.wait.max", "0"),
                 Set.of("Person", "Address", "FunkyLongAddress"));
-        persistence = new DefaultBufferedPersistence(streaming);
+        persistence = new DefaultBufferedPersistence(streaming, 8 * 1024);
     }
 
     @AfterClass
