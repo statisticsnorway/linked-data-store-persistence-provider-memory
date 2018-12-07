@@ -1,9 +1,9 @@
 package no.ssb.lds.core.persistence.memory;
 
-import no.ssb.lds.api.persistence.Persistence;
 import no.ssb.lds.api.persistence.PersistenceInitializer;
 import no.ssb.lds.api.persistence.ProviderName;
 import no.ssb.lds.api.persistence.TransactionFactory;
+import no.ssb.lds.api.persistence.streaming.Persistence;
 import no.ssb.lds.core.persistence.foundationdb.FoundationDBDirectory;
 
 import java.util.Map;
