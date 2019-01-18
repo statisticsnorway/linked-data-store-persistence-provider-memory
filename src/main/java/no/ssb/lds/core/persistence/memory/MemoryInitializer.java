@@ -16,6 +16,9 @@ import static java.util.Optional.ofNullable;
 @ProviderName("mem")
 public class MemoryInitializer implements PersistenceInitializer {
 
+    MemoryPersistence persistence;
+    JsonPersistence jsonPersistence;
+
     @Override
     public String persistenceProviderId() {
         return "mem";
@@ -30,6 +33,14 @@ public class MemoryInitializer implements PersistenceInitializer {
         );
     }
 
+    public MemoryPersistence getPersistence() {
+        return persistence;
+    }
+
+    public JsonPersistence getJsonPersistence() {
+        return jsonPersistence;
+    }
+
     @Override
     public JsonPersistence initialize(String defaultNamespace, Map<String, String> configuration, Set<String> managedDomains) {
         int waitMinMs = Integer.parseInt(configuration.get("persistence.mem.wait.min"));
@@ -37,6 +48,8 @@ public class MemoryInitializer implements PersistenceInitializer {
         int fragmentCapacityBytes = Integer.parseInt(ofNullable(configuration.get("persistence.fragment.capacity")).orElse("8192"));
         TransactionFactory transactionFactory = new MemoryTransactionFactory();
         FoundationDBDirectory foundationDbDirectory = new MemoryDirectory(2);
-        return new BufferedJsonPersistence(new DefaultFlattenedPersistence(new MemoryPersistence(transactionFactory, foundationDbDirectory), fragmentCapacityBytes), fragmentCapacityBytes);
+        persistence = new MemoryPersistence(transactionFactory, foundationDbDirectory);
+        jsonPersistence = new BufferedJsonPersistence(new DefaultFlattenedPersistence(persistence, fragmentCapacityBytes), fragmentCapacityBytes);
+        return jsonPersistence;
     }
 }
