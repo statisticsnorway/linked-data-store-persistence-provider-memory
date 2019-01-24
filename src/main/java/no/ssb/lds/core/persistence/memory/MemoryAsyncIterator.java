@@ -7,31 +7,45 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 public class MemoryAsyncIterator implements AsyncIterator<KeyValue> {
 
+    final Executor executor;
     final NavigableMap<byte[], byte[]> map;
     final Iterator<Map.Entry<byte[], byte[]>> internalIterator;
 
-    public MemoryAsyncIterator(NavigableMap<byte[], byte[]> map) {
+    public MemoryAsyncIterator(Executor executor, NavigableMap<byte[], byte[]> map) {
+        this.executor = executor;
         this.map = map;
-        this.internalIterator = map.entrySet().iterator();
+        Iterator<Map.Entry<byte[], byte[]>> iterator = map.entrySet().iterator();
+        synchronized (iterator) {
+            this.internalIterator = iterator;
+        }
     }
 
     @Override
     public CompletableFuture<Boolean> onHasNext() {
-        return CompletableFuture.completedFuture(hasNext());
+        return CompletableFuture.supplyAsync(() -> {
+            synchronized (internalIterator) {
+                return internalIterator.hasNext();
+            }
+        }, executor);
     }
 
     @Override
     public boolean hasNext() {
-        return internalIterator.hasNext();
+        synchronized (internalIterator) {
+            return internalIterator.hasNext();
+        }
     }
 
     @Override
     public KeyValue next() {
-        Map.Entry<byte[], byte[]> nextInternal = internalIterator.next();
-        return new KeyValue(nextInternal.getKey(), nextInternal.getValue());
+        synchronized (internalIterator) {
+            Map.Entry<byte[], byte[]> nextInternal = internalIterator.next();
+            return new KeyValue(nextInternal.getKey(), nextInternal.getValue());
+        }
     }
 
     @Override

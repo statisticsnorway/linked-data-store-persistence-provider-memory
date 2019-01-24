@@ -27,8 +27,6 @@ public class MemoryInitializer implements PersistenceInitializer {
     @Override
     public Set<String> configurationKeys() {
         return Set.of(
-                "persistence.mem.wait.min",
-                "persistence.mem.wait.max",
                 "persistence.fragment.capacity"
         );
     }
@@ -43,10 +41,9 @@ public class MemoryInitializer implements PersistenceInitializer {
 
     @Override
     public JsonPersistence initialize(String defaultNamespace, Map<String, String> configuration, Set<String> managedDomains) {
-        int waitMinMs = Integer.parseInt(configuration.get("persistence.mem.wait.min"));
-        int waitMaxMs = Integer.parseInt(configuration.get("persistence.mem.wait.max"));
         int fragmentCapacityBytes = Integer.parseInt(ofNullable(configuration.get("persistence.fragment.capacity")).orElse("8192"));
-        TransactionFactory transactionFactory = new MemoryTransactionFactory();
+        boolean cancelTxOnClose = Boolean.parseBoolean(ofNullable(configuration.get("persistence.mem.transaction.cancel-on-close")).orElse("false"));
+        TransactionFactory transactionFactory = new MemoryTransactionFactory(cancelTxOnClose);
         FoundationDBDirectory foundationDbDirectory = new MemoryDirectory(2);
         persistence = new MemoryPersistence(transactionFactory, foundationDbDirectory);
         jsonPersistence = new BufferedJsonPersistence(new DefaultFlattenedPersistence(persistence, fragmentCapacityBytes), fragmentCapacityBytes);

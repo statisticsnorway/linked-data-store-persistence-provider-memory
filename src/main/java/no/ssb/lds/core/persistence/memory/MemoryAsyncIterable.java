@@ -7,25 +7,26 @@ import com.apple.foundationdb.async.AsyncIterator;
 import java.util.List;
 import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 public class MemoryAsyncIterable implements AsyncIterable<KeyValue> {
 
+    private final Executor executor;
     final NavigableMap<byte[], byte[]> map;
 
-    public MemoryAsyncIterable(NavigableMap<byte[], byte[]> map) {
-        // this.map = new TreeMap<>((o1, o2) -> Arrays.compareUnsigned(o1, o2));
-        // this.map.putAll(map);
+    public MemoryAsyncIterable(Executor executor, NavigableMap<byte[], byte[]> map) {
+        this.executor = executor;
         this.map = map;
     }
 
     @Override
     public AsyncIterator<KeyValue> iterator() {
-        return new MemoryAsyncIterator(map);
+        return new MemoryAsyncIterator(executor, map);
     }
 
     @Override
     public CompletableFuture<List<KeyValue>> asList() {
-        return CompletableFuture.completedFuture(map.entrySet().stream().map(e -> new KeyValue(e.getKey(), e.getValue())).collect(Collectors.toList()));
+        return CompletableFuture.supplyAsync(() -> map.entrySet().stream().map(e -> new KeyValue(e.getKey(), e.getValue())).collect(Collectors.toList()), executor);
     }
 }

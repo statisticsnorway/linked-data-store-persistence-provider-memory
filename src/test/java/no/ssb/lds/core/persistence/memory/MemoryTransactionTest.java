@@ -15,7 +15,7 @@ public class MemoryTransactionTest {
 
     @Test
     public void thatTransactionRollsBackOnCancel() {
-        MemoryTransactionFactory factory = new MemoryTransactionFactory();
+        MemoryTransactionFactory factory = new MemoryTransactionFactory(false);
         try (MemoryTransaction tx = factory.createTransaction(false)) {
             tx.set(new byte[]{1, 2, 2}, new byte[]{1, 2, 2}, "i1");
             tx.set(new byte[]{1, 2, 3}, new byte[]{1, 2, 3}, "i1");
