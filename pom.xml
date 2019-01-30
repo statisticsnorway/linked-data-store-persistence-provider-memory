@@ -59,11 +59,6 @@
     <dependencies>
         <dependency>
             <groupId>no.ssb.lds</groupId>
-            <artifactId>linked-data-store-persistence-provider-api</artifactId>
-            <version>0.10-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>no.ssb.lds</groupId>
             <artifactId>linked-data-store-persistence-provider-foundationdb</artifactId>
             <version>0.6-SNAPSHOT</version>
         </dependency>
