@@ -14,15 +14,17 @@ public class MemoryAsyncIterable implements AsyncIterable<KeyValue> {
 
     private final Executor executor;
     final NavigableMap<byte[], byte[]> map;
+    private final int limit;
 
-    public MemoryAsyncIterable(Executor executor, NavigableMap<byte[], byte[]> map) {
+    public MemoryAsyncIterable(Executor executor, NavigableMap<byte[], byte[]> map, int limit) {
         this.executor = executor;
         this.map = map;
+        this.limit = limit;
     }
 
     @Override
     public AsyncIterator<KeyValue> iterator() {
-        return new MemoryAsyncIterator(executor, map);
+        return new MemoryAsyncIterator(executor, map, limit);
     }
 
     @Override

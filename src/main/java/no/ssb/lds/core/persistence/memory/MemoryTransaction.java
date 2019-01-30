@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 
-class MemoryTransaction implements OrderedKeyValueTransaction {
+public class MemoryTransaction implements OrderedKeyValueTransaction {
 
     static class TransactionLogElement {
         final String index;
@@ -171,12 +171,12 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
     }
 
     @Override
-    public AsyncIterable<KeyValue> getRange(Range range, String index) {
-        return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).subMap(range.begin, true, range.end, false)));
+    public AsyncIterable<KeyValue> getRange(Range range, String index, int limit) {
+        return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).subMap(range.begin, true, range.end, false)), limit);
     }
 
     @Override
-    public AsyncIterable<KeyValue> getRange(KeySelector begin, KeySelector end, String index) {
+    public AsyncIterable<KeyValue> getRange(KeySelector begin, KeySelector end, String index, int limit) {
         return getRange(begin, end, -1, StreamingMode.ITERATOR, index);
     }
 
@@ -189,35 +189,35 @@ class MemoryTransaction implements OrderedKeyValueTransaction {
                 int compareUnsigned = Arrays.compareUnsigned(fromInclusive, toExclusive);
                 if (compareUnsigned >= 0) {
                     // negative or empty range
-                    return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap());
+                    return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap(), limit);
                 }
                 // positive range
-                return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).subMap(fromInclusive, true, toExclusive, false)));
+                return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).subMap(fromInclusive, true, toExclusive, false)), limit);
             }
             // toExclusive is null
             if (end.getOffset() == 0) {
                 // end less
-                return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap());
+                return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap(), limit);
             }
             // end greater
-            return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).tailMap(fromInclusive, true)));
+            return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).tailMap(fromInclusive, true)), limit);
         } else {
             // fromInclusive == null
             if (toExclusive != null) {
                 if (begin.getOffset() == 0) {
                     // begin less
-                    return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).headMap(toExclusive, false)));
+                    return new MemoryAsyncIterable(executor, copy(getMapByIndex(index).headMap(toExclusive, false)), limit);
                 }
                 // begin greater
-                return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap());
+                return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap(), limit);
             }
             // toExclusive == null
             if (begin.getOffset() == 0 && end.getOffset() == 1) {
                 // begin less and end greater
-                return new MemoryAsyncIterable(executor, copy(getMapByIndex(index)));
+                return new MemoryAsyncIterable(executor, copy(getMapByIndex(index)), limit);
             }
             // begin greater or end less
-            return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap());
+            return new MemoryAsyncIterable(executor, Collections.emptyNavigableMap(), limit);
         }
     }
 

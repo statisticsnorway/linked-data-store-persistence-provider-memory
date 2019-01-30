@@ -11,6 +11,8 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.apple.foundationdb.ReadTransaction.ROW_LIMIT_UNLIMITED;
+
 public class MemoryTransactionTest {
 
     @Test
@@ -77,7 +79,7 @@ public class MemoryTransactionTest {
 
     private List<KeyValue> getRange(MemoryTransaction tx, Range range, String index) {
         List<KeyValue> rangeResult = new ArrayList<>();
-        AsyncIterable<KeyValue> iterable = tx.getRange(range, index);
+        AsyncIterable<KeyValue> iterable = tx.getRange(range, index, ROW_LIMIT_UNLIMITED);
         AsyncIterator<KeyValue> iterator = iterable.iterator();
         while (iterator.hasNext()) {
             KeyValue kv = iterator.next();
@@ -88,7 +90,7 @@ public class MemoryTransactionTest {
 
     private List<KeyValue> getRange(MemoryTransaction tx, KeySelector fromInclusive, KeySelector toExclusive, String index) {
         List<KeyValue> rangeResult = new ArrayList<>();
-        AsyncIterable<KeyValue> asyncIterable = tx.getRange(fromInclusive, toExclusive, index);
+        AsyncIterable<KeyValue> asyncIterable = tx.getRange(fromInclusive, toExclusive, index, ROW_LIMIT_UNLIMITED);
         AsyncIterator<KeyValue> iterator = asyncIterable.iterator();
         while (iterator.hasNext()) {
             KeyValue kv = iterator.next();
@@ -101,7 +103,7 @@ public class MemoryTransactionTest {
         List<KeyValue> copyOfState = new ArrayList<>();
         // capture entire database state
         try (MemoryTransaction tx = factory.createTransaction(true)) {
-            AsyncIterable<KeyValue> asyncIterable = tx.getRange(firstGreaterOrEqual(new byte[]{1, 2, 3}), KeySelector.lastLessOrEqual(new byte[]{1, 2, 4}), "i1");
+            AsyncIterable<KeyValue> asyncIterable = tx.getRange(firstGreaterOrEqual(new byte[]{1, 2, 3}), KeySelector.lastLessOrEqual(new byte[]{1, 2, 4}), "i1", ROW_LIMIT_UNLIMITED);
             AsyncIterator<KeyValue> iterator = asyncIterable.iterator();
             while (iterator.hasNext()) {
                 KeyValue kv = iterator.next();
