@@ -28,6 +28,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Function;
 
+import static com.apple.foundationdb.ReadTransaction.ROW_LIMIT_UNLIMITED;
+
 public class MemoryTransaction implements OrderedKeyValueTransaction {
 
     static class TransactionLogElement {
@@ -177,7 +179,7 @@ public class MemoryTransaction implements OrderedKeyValueTransaction {
 
     @Override
     public AsyncIterable<KeyValue> getRange(KeySelector begin, KeySelector end, String index, int limit) {
-        return getRange(begin, end, -1, StreamingMode.ITERATOR, index);
+        return getRange(begin, end, ROW_LIMIT_UNLIMITED, StreamingMode.ITERATOR, index);
     }
 
     @Override
