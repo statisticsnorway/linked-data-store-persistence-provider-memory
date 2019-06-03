@@ -60,12 +60,12 @@
         <dependency>
             <groupId>no.ssb.lds</groupId>
             <artifactId>linked-data-store-persistence-provider-api</artifactId>
-            <version>0.12-SNAPSHOT</version>
+            <version>0.12</version>
         </dependency>
         <dependency>
             <groupId>no.ssb.lds</groupId>
             <artifactId>linked-data-store-persistence-provider-foundationdb</artifactId>
-            <version>0.8-SNAPSHOT</version>
+            <version>0.8</version>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
