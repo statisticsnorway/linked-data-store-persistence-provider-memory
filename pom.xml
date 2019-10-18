@@ -60,12 +60,12 @@
         <dependency>
             <groupId>no.ssb.lds</groupId>
             <artifactId>linked-data-store-persistence-provider-api</artifactId>
-            <version>0.12</version>
+            <version>0.14-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>no.ssb.lds</groupId>
             <artifactId>linked-data-store-persistence-provider-foundationdb</artifactId>
-            <version>0.8</version>
+            <version>0.9-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.testng</groupId>
@@ -96,6 +96,12 @@
                     <artifactId>javax.mail</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.lds</groupId>
+            <artifactId>linked-data-store-persistence-provider-test</artifactId>
+            <version>0.4-SNAPSHOT</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
