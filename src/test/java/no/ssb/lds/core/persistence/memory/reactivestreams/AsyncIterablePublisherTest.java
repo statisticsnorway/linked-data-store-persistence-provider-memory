@@ -43,7 +43,8 @@ public class AsyncIterablePublisherTest extends PublisherVerification<KeyValue> 
                         "persistence.mem.wait.max", "0",
                         "persistence.fragment.capacity", "8192"
                 ),
-                Set.of("A")
+                Set.of("A"),
+                null
         );
         rxJsonPersistence = initializer.getRxJsonPersistence();
         rxPersistence = initializer.getPersistence();

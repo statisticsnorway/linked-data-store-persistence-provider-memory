@@ -18,7 +18,8 @@ public class MemoryPersistenceIntegrationTest extends PersistenceIntegrationTest
         persistence = new MemoryInitializer().initialize(namespace,
                 Map.of("persistence.fragment.capacity", "1024",
                         "persistence.mem.transaction.cancel-on-close", "true"),
-                Set.of("Person", "Address", "FunkyLongAddress"));
+                Set.of("Person", "Address", "FunkyLongAddress"),
+                null);
     }
 
     @AfterClass

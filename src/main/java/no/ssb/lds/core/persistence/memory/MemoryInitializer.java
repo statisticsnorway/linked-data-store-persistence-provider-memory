@@ -5,6 +5,7 @@ import no.ssb.lds.api.persistence.ProviderName;
 import no.ssb.lds.api.persistence.TransactionFactory;
 import no.ssb.lds.api.persistence.reactivex.RxJsonPersistence;
 import no.ssb.lds.api.persistence.reactivex.RxJsonPersistenceBridge;
+import no.ssb.lds.api.specification.Specification;
 import no.ssb.lds.core.persistence.foundationdb.FoundationDBDirectory;
 
 import java.util.Map;
@@ -39,7 +40,7 @@ public class MemoryInitializer implements PersistenceInitializer {
     }
 
     @Override
-    public RxJsonPersistence initialize(String defaultNamespace, Map<String, String> configuration, Set<String> managedDomains) {
+    public RxJsonPersistence initialize(String defaultNamespace, Map<String, String> configuration, Set<String> managedDomains, Specification specification) {
         int fragmentCapacityBytes = Integer.parseInt(ofNullable(configuration.get("persistence.fragment.capacity")).orElse("8192"));
         boolean cancelTxOnClose = Boolean.parseBoolean(ofNullable(configuration.get("persistence.mem.transaction.cancel-on-close")).orElse("false"));
         TransactionFactory transactionFactory = new MemoryTransactionFactory(cancelTxOnClose);
